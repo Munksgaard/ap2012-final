@@ -4,7 +4,7 @@
 %%%---------------------------------------------------------------------
 -module(pm).
 
--export([newVanilla/0, newPrincess/1, get/1, put/2, compromised/1, test/1]).
+-export([newVanilla/0, newPrincess/1, get/1, put/2, compromised/1]).
 
 %%%% Interface
 
@@ -28,18 +28,6 @@ put(V, T) ->
 compromised(V) ->
     {ok, Reply} = rpc(V, compromised),
     Reply.
-
-test(IVar) ->
-    X = self(),
-    spawn(fun () -> getter(X, IVar) end),
-    pm:put(IVar, 3),
-    receive
-        {got, T} -> T;
-        Unknown -> io:format("Unknown ~p~n",[Unknown])
-    end.
-
-getter(From, IVar) ->
-    From ! {got, pm:get(IVar)}.
 
 %% Synchronous communication
 
@@ -68,6 +56,7 @@ vanilla_loop() ->
         {From, compromised} ->
             reply_ok(From, false),
             vanilla_loop();
+        stop -> io:format("stopping");
         Unknown ->
             io:format("Unknown message: ~p~n",[Unknown]),
             vanilla_loop()
@@ -82,6 +71,7 @@ vanilla_loop(T, Compromised) ->
         {From, compromised} ->
             reply_ok(From, Compromised),
             vanilla_loop(T, Compromised);
+        stop -> io:format("stopping");
         Unknown ->
             io:format("Unknown message: ~p~n",[Unknown]),
             vanilla_loop(T, Compromised)
@@ -94,14 +84,15 @@ princess_loop(P) ->
         {From, get} ->
             reply(From, notset),
             princess_loop(P);
-        {put, T} -> 
+        {put, T} ->
             case catch (P(T)) of
                 true -> princess_loop(set, T);
                 _ -> princess_loop(P)
             end;
         {From, compromised} ->
             reply_ok(From, false),
-            princess_loop(P)
+            princess_loop(P);
+        stop -> io:format("stopping")
     end.
 
 princess_loop(set, T) ->
@@ -112,5 +103,6 @@ princess_loop(set, T) ->
         {put, _} -> princess_loop(set, T);
         {From, compromised} ->
             reply_ok(From, false),
-            princess_loop(set, T)
+            princess_loop(set, T);
+        stop -> io:format("stopping")
     end.
