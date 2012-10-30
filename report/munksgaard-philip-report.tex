@@ -15,6 +15,7 @@
 \fancyhead[RO]{Advanced Programming - Final Exam}
 \fancyfoot[CO]{\thepage}
 
+\newcommand{\erlang}[1]{\texttt{#1}}
 
 \title{Advanced Programming - Final Exam}
 \author{Philip Munksgaard}
@@ -22,5 +23,41 @@
 \begin{document}
 \maketitle
 
+\section{IVars in Erlang}
+
+\subsection{Implementation}
+
+I have implemented IVars as processes. The functions
+\erlang{newVanilla/0} and \erlang{newPrincess/1} create new IVars of
+the types indicated by their names, by calling a loop function
+(\erlang{vanilla\_loop/0} and \erlang{princess\_loop/1} respectively),
+that takes care of handling \erlang{put} commands. As soon as a
+\erlang{put} command has been received, they go into another loop
+(\erlang{vanilla\_loop/2} and \erlang{princess\_loop/2} respectively)
+that has the value as an argument \erlang{T} to the
+function. \erlang{vanilla\_loop/2} also has a \erlang{Compromised}
+argument, which is initially set to false, but if the function
+receives a put request, it is set to true.
+
+The argument to the \erlang{put} command for princess IVars are of
+course tested against the predicate \erlang{P} before assignment, and
+we use \erlang{catch} to make sure exceptions don't interfere with our
+functions.
+
+The function \erlang{get} blocks until a value has been \erlang{put}
+to that IVar. The loops do so by replying the value \erlang{notset},
+whereupon the \erlang{get} function tries again by calling itself. If
+the IVar has been set (using \erlang{put}) the loops return
+\erlang{\{ok, TheValue\}}.
+
+\subsection{Assesment}
+
+I have written unit tests using EUnit in the pm\_tests module covering
+all the cases described in the assignment. I can therefore reasonably
+assess that my IVars work as expected and as indicated by my
+tests. They probably be more efficient though, for example, instead of
+busy waiting in the \erlang{get} function, i could utilize erlangs
+message queue in the princess and vanilla loops, and in \erlang{get}
+simply wait for a message returning the result of the call.
 
 \end{document}
