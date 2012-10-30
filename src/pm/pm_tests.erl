@@ -1,7 +1,6 @@
 -module(pm_tests).
 
 -include_lib("eunit/include/eunit.hrl").
-%-import(eunit).
 
 -compile(export_all).
 
