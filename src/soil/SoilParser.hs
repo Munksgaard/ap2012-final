@@ -5,7 +5,9 @@ import Text.ParserCombinators.ReadP
 
 import Data.Char
 
-data Error = ParseError String
+data Error = ParseError Program String
+           | AmbiguousError [Program]
+             deriving Show
 
 type Parser a = ReadP a
 
@@ -19,10 +21,27 @@ reservedKeywords :: [String]
 reservedKeywords = ["let", "from", "case", "send", "self", "concat"]
 
 parseString :: String -> Either Error Program
-parseString s = undefined
+parseString s =
+    let
+        parses = parse parseDefOps s
+        eofParse = parseEof parseDefOps s
+    in
+      if null eofParse then
+          let
+              (prog, rest) = last parses
+          in
+            Left $ ParseError prog rest
+      else if length eofParse == 1
+           then
+               Right $ fst $ head eofParse
+           else
+               Left $ AmbiguousError $ map fst eofParse
 
 parseFile :: FilePath -> IO (Either Error Program)
-parseFile fpath = undefined
+parseFile fpath =
+    do
+      s <- readFile fpath
+      return $ parseString s
 
 digit           :: Parser Char
 digit            = satisfy isDigit
@@ -48,15 +67,8 @@ schar = token . char
 var :: Parser Ident
 var = token $ munch1 $ \x -> isAlpha x || '_' == x
 
-parseIdent :: Parser Prim
+parseIdent :: Parser Ident
 parseIdent =
-    do
-      _ <- schar '#'
-      s <- var
-      return (Id s)
-
-parseIdent2 :: Parser Ident
-parseIdent2 =
     do
       _ <- schar '#'
       var
@@ -67,14 +79,8 @@ parseSelf =
       _ <- symbol "self"
       return Self
 
-parseName :: Parser Prim
+parseName :: Parser Name
 parseName =
-    do
-      s <- var
-      if  s `notElem` reservedKeywords then return (Par s) else pfail
-
-parseName2 :: Parser Name
-parseName2 =
     do
       s <- var
       if  s `notElem` reservedKeywords then return s else pfail
@@ -93,12 +99,15 @@ parsePrim =
                         return Concat)
     where
       parsePrim' =
-          parseIdent
+          do
+            ident <- parseIdent
+            return $ Id ident
           +++
           parseSelf
           +++
-          parseName
-
+          do
+            name <- parseName
+            return $ Par name
 parseArgs :: ReadP [Prim]
 parseArgs = sepBy parsePrim (skipSpaces >> char ',' >> skipSpaces)
 
@@ -132,7 +141,7 @@ parseActOps :: ReadP [ActOp]
 parseActOps = many parseActOp
 
 parseParams :: ReadP [Name]
-parseParams = sepBy parseName2 (schar ',')
+parseParams = sepBy parseName (schar ',')
 
 parseExpr :: ReadP Expr
 parseExpr =
@@ -177,10 +186,10 @@ parseFunDef :: ReadP Func
 parseFunDef =
     do
       _ <- symbol "let"
-      ident <- parseIdent2
+      ident <- parseIdent
       parms <- between (schar '(') (schar ')') parseParams
       _ <- symbol "from"
-      name <- parseName2
+      name <- parseName
       _ <- schar '='
       expr <- parseExpr
       _ <- symbol "end"
