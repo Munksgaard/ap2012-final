@@ -60,4 +60,25 @@ busy waiting in the \erlang{get} function, i could utilize erlangs
 message queue in the princess and vanilla loops, and in \erlang{get}
 simply wait for a message returning the result of the call.
 
+\section{pmuse: Using IVars}
+
+\subsection{Implementation of pmmap}
+
+\erlang{pmmap/2} calls \erlang{pmmap/3} which, apart from the function
+\erlang{F} and the list \erlang{L} takes another list that we'll use
+to store IVars in.
+
+\erlang{pmmap/3} creates an IVar and spawns a new process for each
+element in \erlang{L}. The new process applies \erlang{F} to the
+element and \erlang{put}s it in the IVar. When \erlang{pmmap/3} has
+gone through the entire list, it calls \erlang{pmmap\_receive/2} which
+uses \erlang{get} with a list of all the IVars created in
+\erlang{pmmap/3} to create a list of the results.
+
+\subsection{Implementation of treeforall}
+
+\erlang{treeforall\2} is a function that traverses the tree \erlang{T}
+and makes sure that all elements satisfy the predicate \erlang{P}. It
+creates a princess IVar \erlang{ShortCircuit} and spawns a new process to receive 
+
 \end{document}
