@@ -1,4 +1,4 @@
-let #print() from message = 
+let #print() from message =
   send (message) to #println
 end
 
