@@ -15,10 +15,12 @@ parse :: ReadP a -> ReadS a
 parse = readP_to_S
 
 parseEof :: ReadP a -> ReadS a
-parseEof p = parse (do { r <- p; eof; return r})
+parseEof p = parse (do { r <- p; skipSpaces; eof; return r})
 
 reservedKeywords :: [String]
-reservedKeywords = ["let", "from", "case", "send", "self", "concat"]
+reservedKeywords = [ "let", "from", "case", "of", "if", "then", "else"
+                   , "send", "self", "concat", "send", "create"
+                   , "become", "with", "to"]
 
 parseString :: String -> Either Error Program
 parseString s =
@@ -65,7 +67,7 @@ schar :: Char -> Parser Char
 schar = token . char
 
 var :: Parser Ident
-var = token $ munch1 $ \x -> isAlpha x || '_' == x
+var = token $ munch1 $ \x -> isAlpha x || '_' == x || isDigit x
 
 parseIdent :: Parser Ident
 parseIdent =
@@ -83,7 +85,11 @@ parseName :: Parser Name
 parseName =
     do
       s <- var
-      if  s `notElem` reservedKeywords then return s else pfail
+      if  s `notElem` reservedKeywords && isLetter (head s)
+      then
+          return s
+      else
+          pfail
 
 parseConcat :: Parser Prim
 parseConcat =
@@ -202,21 +208,6 @@ parseDefOps :: ReadP ([Func], [ActOp])
 parseDefOps =
     do
       funs <- many parseFunDef
+      skipSpaces
       acts <- parseActOps
       return (funs, acts)
-
--- parsePrim' :: Parser Prim
--- parsePrim' =
---     do
---       p1 <- parsePrim
---       do
---         skipSpaces
---         string "concat"
---         skipSpaces
---         p2 <- parsePrim'
---         return (Concat p1 p2)
---         <++
---         return p1
-
-
---chainl1 parsePrim (string " concat " >> return Concat)
